@@ -32,7 +32,9 @@ class RobotResultsParser(object):
         self._verbose('- Parsing %s' % xml_file)
         test_run = ExecutionResult(xml_file, include_keywords=self._include_keywords)
         hash_string = self._hash(xml_file)
-        suite_metadata = list(test_run.suite.metadata.values())[0]
+        # TODO: fix ValuesView error
+        suite_metadata = str(test_run.suite.metadata)
+
         try:
             test_run_id = self._db.insert('test_runs', {
                 'hash': hash_string,
@@ -100,7 +102,7 @@ class RobotResultsParser(object):
         self._db.insert_or_ignore('test_run_status', {
             'test_run_id': test_run_id,
             'name': stat.name,
-            'elapsed': getattr(stat, 'elapsed', None),
+            'elapsed': getattr(stat, 'elapsed', None).seconds if stat.elapsed else None,
             'failed': stat.failed,
             'passed': stat.passed
         })
@@ -112,27 +114,28 @@ class RobotResultsParser(object):
                 'suite_id': parent_suite_id,
                 'xml_id': suite.id,
                 'name': suite.name,
-                'source': suite.source,
+                'source': str(suite.source),
                 'doc': suite.doc,
                 'metadata': suite_metadata
             })
         except IntegrityError:
             suite_id = self._db.fetch_id('suites', {
                 'name': suite.name,
-                'source': suite.source,
+                'source': str(suite.source),
                 'metadata': suite_metadata
             })
         self._parse_suite_status(test_run_id, suite_id, suite)
         self._parse_suites(suite, test_run_id, suite_metadata, suite_id)
         self._parse_tests(suite.tests, test_run_id, suite_id)
-        self._parse_keywords(suite.keywords, test_run_id, suite_id, None)
+        # keywords are not (longer?) included in the Suite
+        # self._parse_keywords(suite.keywords, test_run_id, suite_id, None)
 
     def _parse_suite_status(self, test_run_id, suite_id, suite):
         self._db.insert_or_ignore('suite_status', {
             'test_run_id': test_run_id,
             'suite_id': suite_id,
-            'passed': suite.statistics.all.passed,
-            'failed': suite.statistics.all.failed,
+            'passed': suite.statistics.passed,
+            'failed': suite.statistics.failed,
             'elapsed': suite.elapsedtime,
             'status': suite.status
         })
@@ -160,7 +163,9 @@ class RobotResultsParser(object):
             })
         self._parse_test_status(test_run_id, test_id, test)
         self._parse_tags(test.tags, test_id)
-        self._parse_keywords(test.keywords, test_run_id, None, test_id)
+        # keywords are now part of the bod
+        keywords = test.body.filter(keywords=True)
+        self._parse_keywords(keywords, test_run_id, suite_id, test_id)
 
     def _parse_test_status(self, test_run_id, test_id, test):
         self._db.insert_or_ignore('test_status', {
@@ -194,10 +199,13 @@ class RobotResultsParser(object):
                 'name': keyword.name,
                 'type': keyword.type
             })
+            if not keyword_id:
+                raise ValueError('Keyword_id not found for keyword %s' % keyword.name)
         self._parse_keyword_status(test_run_id, keyword_id, keyword)
         self._parse_messages(keyword.messages, keyword_id)
         self._parse_arguments(keyword.args, keyword_id)
-        self._parse_keywords(keyword.keywords, test_run_id, None, None, keyword_id)
+        keywords = keyword.body.filter(keywords=True)
+        self._parse_keywords(keywords, test_run_id, None, None, keyword_id)
 
     def _parse_keyword_status(self, test_run_id, keyword_id, keyword):
         self._db.insert_or_ignore('keyword_status', {
@@ -211,7 +219,7 @@ class RobotResultsParser(object):
         for message in messages:
             self._db.insert_or_ignore('messages', {
                 'keyword_id': keyword_id, 'level': message.level,
-                'timestamp': self._format_robot_timestamp(message.timestamp),
+                'timestamp': message.timestamp,
                 'content': message.message,
                 'content_hash': self._string_hash(message.message)
             })

@@ -22,6 +22,7 @@ class DatabaseWriter(object):
 
     def __init__(self, db_url, verbose_stream):
         self._verbose = Logger('DatabaseWriter', verbose_stream)
+        self._verbose('- Initializing database %s' % db_url)
         self._engine = create_engine(db_url)
         self._connection = self._engine.connect()
         self._metadata = MetaData()
@@ -122,7 +123,7 @@ class DatabaseWriter(object):
 
     def _create_table_keywords(self):
         return self._create_table('keywords', (
-            Column('keywords', Integer, ForeignKey('suites.id')),
+            Column('suite_id', Integer, ForeignKey('suites.id')),
             Column('test_id', Integer, ForeignKey('tests.id')),
             Column('keyword_id', Integer, ForeignKey('keywords.id')),
             Column('name', String(256), nullable=False),
@@ -170,27 +171,28 @@ class DatabaseWriter(object):
 
     def fetch_id(self, table_name, criteria):
         table = getattr(self, table_name)
-        sql_statement = select([table.c.id]).where(
+        sql_statement = select(table.c.id).where(
             and_(*(getattr(table.c, key) == value for key, value in criteria.items()))
         )
         result = self._connection.execute(sql_statement).first()
         if not result:
             raise Exception('Query did not yield id, even though it should have.'
                             '\nSQL statement was:\n%s\nArguments were:\n%s' % (sql_statement, list(criteria.values())))
-        return result['id']
+        return result[0]
 
     def insert(self, table_name, criteria):
-        sql_statement = getattr(self, table_name).insert()
-        result = self._connection.execute(sql_statement, **criteria)
+        sql_statement = getattr(self, table_name).insert().values(**criteria)
+        result = self._connection.execute(sql_statement)
         return result.inserted_primary_key[0]
 
     def insert_or_ignore(self, table_name, criteria):
         try:
             self.insert(table_name, criteria)
         except IntegrityError:
-            self._verbose('Failed insert to {table} with values {values}'.format(table=table_name,
-                                                                                 values=list(criteria.values())))
+            self._verbose('Integrity check failed for {table} with values {values}'.format(table=table_name,
+                                                                                 values=list(criteria.items())))
 
     def close(self):
         self._verbose('- Closing database connection')
+        self._connection.commit()
         self._connection.close()
