@@ -189,8 +189,7 @@ class DatabaseWriter(object):
         try:
             self.insert(table_name, criteria)
         except IntegrityError:
-            self._verbose('Integrity check failed for {table} with values {values}'.format(table=table_name,
-                                                                                 values=list(criteria.items())))
+            self._verbose('INSERT skipped for {table} => {values}'.format(table=table_name,values=list(criteria.items())))
 
     def close(self):
         self._verbose('- Closing database connection')
