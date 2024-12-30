@@ -50,7 +50,9 @@ class DatabaseWriter(object):
             Column('imported_at', DateTime, nullable=False),
             Column('source_file', String(1024)),
             Column('started_at', DateTime),
-            Column('finished_at', DateTime)
+            Column('finished_at', DateTime),
+            Column('build_number', Integer, nullable=False),
+            Column('branch_repo', String(1024)),
         ), ('hash',))
 
     def _create_table_test_run_status(self):
@@ -86,9 +88,10 @@ class DatabaseWriter(object):
             Column('suite_id', Integer, ForeignKey('suites.id')),
             Column('xml_id', String(64), nullable=False),
             Column('name', String(256), nullable=False),
-            Column('source', String(1024)),
-            Column('doc', Text)
-        ), ('name', 'source'))
+            Column('source', String(512)),
+            Column('doc', Text),
+            Column('metadata', String(512))
+        ), ('name', 'source', 'metadata'))
 
     def _create_table_suite_status(self):
         return self._create_table('suite_status', (

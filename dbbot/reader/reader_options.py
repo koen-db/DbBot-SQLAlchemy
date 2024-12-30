@@ -44,7 +44,15 @@ class ReaderOptions(object):
 
             ('-b', '--database', {'dest': 'db_url',
                                   'default': DEFAULT_DB_URL,
-                                  'help': 'SQLAlchemy Database URL'})
+                                  'help': 'SQLAlchemy Database URL'}),
+
+            ('-j', '--jenkins', {'dest': 'build_number',
+                                  'default': 1,
+                                  'help': 'Insert Jenkins Build Number'}),
+
+            ('-r', '--repo', {'dest': 'branch_repo',
+                                  'default': 'master',
+                                  'help': 'Insert Branch Repo'})
         ]
         for option in options:
             self._parser.add_option(option[0], option[1], **option[2])
@@ -80,6 +88,14 @@ class ReaderOptions(object):
     @property
     def dry_run(self):
         return self._options.dry_run
+
+    @property
+    def build_number(self):
+        return self._options.build_number
+
+    @property
+    def branch_repo(self):
+        return self._options.branch_repo
 
     @property
     def include_keywords(self):
