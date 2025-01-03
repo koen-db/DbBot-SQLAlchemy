@@ -72,7 +72,7 @@ class RobotResultsParser(object):
         for error in errors:
             self._db.insert_or_ignore('test_run_errors', {
                 'test_run_id': test_run_id, 'level': error.level,
-                'timestamp': self._format_robot_timestamp(error.timestamp),
+                'timestamp': error.timestamp,
                 'content': error.message,
                 'content_hash': self._string_hash(error.message)
             })
