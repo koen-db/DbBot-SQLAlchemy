@@ -39,7 +39,7 @@ class RobotResultsParser(object):
             test_run_id = self._db.insert('test_runs', {
                 'hash': hash_string,
                 'imported_at': datetime.utcnow(),
-                'source_file': test_run.source,
+                'source_file': str(test_run.source),
                 'started_at': self._format_robot_timestamp(test_run.suite.starttime),
                 'finished_at': self._format_robot_timestamp(test_run.suite.endtime),
                 'build_number': build_number,
@@ -47,7 +47,7 @@ class RobotResultsParser(object):
             })
         except IntegrityError:
             test_run_id = self._db.fetch_id('test_runs', {
-                'source_file': test_run.source,
+                'source_file': str(test_run.source),
                 'started_at': self._format_robot_timestamp(test_run.suite.starttime),
                 'finished_at': self._format_robot_timestamp(test_run.suite.endtime),
                 'build_number': build_number,
